@@ -151,13 +151,43 @@ static int workspaces_string_cb(void *params_, const unsigned char *val, size_t 
         char *output_name = NULL;
         sasprintf(&output_name, "%.*s", len, val);
 
+        i3_output *outputs_walk;
+        i3_ws *ws_walk;
+        i3_ws *ws_next;
+        SLIST_FOREACH(outputs_walk, outputs, slist) {
+            if (!TAILQ_EMPTY(outputs_walk->workspaces)) {
+                TAILQ_FOREACH(ws_walk, outputs_walk->workspaces, tailq) {
+                    if (params->workspaces_walk->num > ws_walk->num) {
+                        ws_next = TAILQ_NEXT(ws_walk, tailq);
+                        if (ws_next == NULL) {
+                            TAILQ_INSERT_TAIL(outputs_walk->workspaces,
+                                              params->workspaces_walk,
+                                              tailq);
+                            break;
+                        } else if (params->workspaces_walk->num < ws_next->num) {
+                            TAILQ_INSERT_AFTER(outputs_walk->workspaces,
+                                               ws_walk,
+                                               params->workspaces_walk,
+                                               tailq);
+                            break;
+                        }
+                    } else {
+                        TAILQ_INSERT_BEFORE(ws_walk,
+                                            params->workspaces_walk,
+                                            tailq);
+                        break;
+                    }
+                }
+            } else {
+                TAILQ_INSERT_TAIL(outputs_walk->workspaces,
+                                  params->workspaces_walk,
+                                  tailq);
+            }
+        }
+
         i3_output *target = get_output_by_name(output_name);
         if (target != NULL) {
             params->workspaces_walk->output = target;
-
-            TAILQ_INSERT_TAIL(params->workspaces_walk->output->workspaces,
-                              params->workspaces_walk,
-                              tailq);
         }
 
         FREE(output_name);
